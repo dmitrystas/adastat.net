@@ -38,10 +38,20 @@ BLOCKS_QUANTITY=$($JCLI rest v0 leaders logs get -h $JREST_API_URL 2>/dev/null |
 
 JSON='{"pool":"'$POOL_ID'","epoch":"'$CURRENT_EPOCH'","blocks":"'$BLOCKS_QUANTITY'"}'
 
-echo 'Request   :' $JSON
+SIGNATURE=$(echo $JSON | $JCLI key sign --secret-key $PRIVATE_KEY_FILE 2>/dev/null)
 
-SIGNATURE=$(echo $JSON | $JCLI key sign --secret-key $PRIVATE_KEY_FILE)
+if [ ! -z "$SIGNATURE" ]; then
+	echo 'Request  :' $JSON
 
-echo 'Signature :' $SIGNATURE
-
-echo 'Response  :' $(curl -s -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: $SIGNATURE" -X POST --data $JSON "https://api.adastat.net/rest/v0/poolblocks.json")
+	RESPONSE=$(curl -s -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: $SIGNATURE" -X POST --data $JSON "https://api.adastat.net/rest/v0/poolblocks.json")
+	
+	STATUS=$(echo "$RESPONSE" | grep '"res":true')
+	
+	if [ ! -z "$STATUS" ]; then
+		echo -e 'Response : \033[0;32mOK\033[0m' 
+	else
+		echo -e 'Response : \033[0;31m'$RESPONSE'\033[0m'
+	fi
+else
+	echo -e '\033[0;31mAn error has occurred while signing data. You should probably specify the correct PRIVATE_KEY_FILE in the config section\033[0m'
+fi
