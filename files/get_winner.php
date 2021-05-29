@@ -1,16 +1,18 @@
 <?php
 
-$pool_id = 'adb8f11466290d1a8bef7c9665848cd66e45a7e74e5c25f586f0192e';
+$epoch_nonce = '9edbb6b3ca5093a1f36d33c5a8628d44c6213cdd6a2ebf62530acdcee2000dd3';
 
-$sourceFile = __DIR__ . '/ledger_state.json';
+$pool_id = '77b0a93c26ac65be36e9a9f220f9a43cbc57d705fc5d8f1de5fdeea1';
 
-system('cardano-cli shelley query ledger-state --mainnet --cardano-mode --out-file ' . $sourceFile);
+$ledgerFile = __DIR__ . '/ledger.json';
 
-$json = json_decode(file_get_contents($sourceFile));
+system('cardano-cli query ledger-state --mainnet > ' . $ledgerFile);
+
+$json = json_decode(file_get_contents($ledgerFile));
 
 $delegators = array();
 
-foreach ($json->esSnapshots->_pstakeMark->_delegations as $row) {
+foreach ($json->stateBefore->esSnapshots->pstakeMark->delegations as $row) {
 	if (is_array($row) && count($row) == 2 && $row[1] == $pool_id && is_object($row[0])) {
 		$delegator = trim($row[0]->{'key hash'});
 		if ($delegator) {
@@ -19,7 +21,7 @@ foreach ($json->esSnapshots->_pstakeMark->_delegations as $row) {
 	}
 }
 
-foreach ($json->esSnapshots->_pstakeMark->_stake as $row) {
+foreach ($json->stateBefore->esSnapshots->pstakeMark->stake as $row) {
 	if (is_array($row) && count($row) == 2 && is_object($row[0]) && isset($delegators[$row[0]->{'key hash'}])) {
 		if ($row[1] > 0) {
 			$delegators[$row[0]->{'key hash'}] = $row[1];
@@ -29,23 +31,21 @@ foreach ($json->esSnapshots->_pstakeMark->_stake as $row) {
 	}
 }
 
-asort($delegators);
+ksort($delegators);
 
-$count = count($delegators);
+for ($winner=1; $winner<=5; $winner++) {
+	$totalStake = array_sum($delegators);
 
-$amount = array_sum($delegators);
+	$winnerPos = $totalStake * crc32($epoch_nonce . $winner) / 4294967296;
 
-$crc32 = crc32($count.$amount);
-
-$winnerIndex = $crc32 / hexdec('FFFFFFFF');
-
-$index = 0;
-
-foreach ($delegators as $key=>$val) {
-	$percent = $val / $amount;
-	$index += $percent;
-	if ($index >= $winnerIndex) {
-		echo 'Winner account: https://adastat.net/accounts/' . $key . PHP_EOL;
-		break;
-	}
+	$stakePos = 0;
+	
+	foreach ($delegators as $hash => $stake) {
+		$stakePos += $stake;
+		if ($stakePos > $winnerPos) {
+			echo 'Winner account '  . $winner . ': https://adastat.net/accounts/' . $hash . PHP_EOL;
+			unset($delegators[$hash]);
+			break;
+		}
+	}	
 }
