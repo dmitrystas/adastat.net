@@ -1,6 +1,6 @@
 <?php
 
-$epoch_nonce = 'ac9f679e2a1809da41839196a04027821dc07af64ec86804f36bae159273400b';
+$epoch_nonce = '94a6fa9d2df9c0a40e2a4ea1d4a4e28e10a559c892db6b6592f1ffe3f153d972';
 
 $pool_id = '77b0a93c26ac65be36e9a9f220f9a43cbc57d705fc5d8f1de5fdeea1';
 
